@@ -16,7 +16,7 @@ from homeassistant.components.group import \
     ENTITY_ID_FORMAT as GROUP_ENTITY_ID_FORMAT
 from homeassistant.const import (
     ATTR_ENTITY_ID, SERVICE_TOGGLE, SERVICE_TURN_OFF, SERVICE_TURN_ON,
-    STATE_ON)
+    STATE_ON, SERVICE_SELECT_SOURCE)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.config_validation import PLATFORM_SCHEMA  # noqa
 from homeassistant.helpers.entity import ToggleEntity
@@ -69,6 +69,14 @@ ATTR_FLASH = "flash"
 FLASH_SHORT = "short"
 FLASH_LONG = "long"
 
+# UDP Listening
+ATTR_UDP_PORT = "udp_port"
+ATTR_UDP_COLOR_SELECTION = "udp_color_selection"
+SOURCE_UDP = "udp"
+SOURCE_HASS = "hass"
+COLOR_SELECTION_STRONGEST = "strongest"
+COLOR_SELECTION_BRIGHTEST = "brightest"
+
 # List of possible effects
 ATTR_EFFECT_LIST = "effect_list"
 
@@ -86,6 +94,7 @@ LIGHT_PROFILES_FILE = "light_profiles.csv"
 VALID_TRANSITION = vol.All(vol.Coerce(float), vol.Clamp(min=0, max=6553))
 VALID_BRIGHTNESS = vol.All(vol.Coerce(int), vol.Clamp(min=0, max=255))
 VALID_BRIGHTNESS_PCT = vol.All(vol.Coerce(float), vol.Range(min=0, max=100))
+VALID_UDP_PORT = vol.All(vol.Coerce(int), vol.Clamp(min=1, max=65535))
 
 LIGHT_TURN_ON_SCHEMA = vol.Schema({
     ATTR_ENTITY_ID: cv.entity_ids,
@@ -118,6 +127,13 @@ LIGHT_TURN_OFF_SCHEMA = vol.Schema({
     ATTR_ENTITY_ID: cv.entity_ids,
     ATTR_TRANSITION: VALID_TRANSITION,
     ATTR_FLASH: vol.In([FLASH_SHORT, FLASH_LONG]),
+})
+
+LIGHT_SELECT_SOURCE_SCHEMA = vol.Schema({
+    ATTR_SOURCE: vol.In([SOURCE_UDP, SOURCE_HASS]),
+    ATTR_ENTITY_ID: cv.entity_ids,
+    ATTR_UDP_PORT: VALID_UDP_PORT,
+    ATTR_UDP_COLOR_SELECTION: vol.In([COLOR_SELECTION_STRONGEST, COLOR_SELECTION_BRIGHTEST]),
 })
 
 LIGHT_TOGGLE_SCHEMA = vol.Schema({
@@ -293,6 +309,11 @@ async def async_setup(hass, config):
         'async_toggle'
     )
 
+    component.async_register_entity_service(
+        SERVICE_SELECT_SOURCE, LIGHT_SELECT_SOURCE_SCHEMA,
+        'async_select_source'
+    )
+
     hass.helpers.intent.async_register(SetIntentHandler())
 
     return True
@@ -368,6 +389,9 @@ class Profiles:
 class Light(ToggleEntity):
     """Representation of a light."""
 
+    def __init__(self, **kwargs):
+        self._sock = None
+        
     @property
     def brightness(self):
         """Return the brightness of this light between 0..255."""
@@ -447,6 +471,77 @@ class Light(ToggleEntity):
                 data[ATTR_EFFECT] = self.effect
 
         return {key: val for key, val in data.items() if val is not None}
+
+    async def async_select_source(self, **kwargs):
+        source = kwargs.get(ATTR_SOURCE)
+        if source is None:
+            _LOGGER.error("%s: Source required", self.entity_id)
+        if source is SOURCE_UDP:
+            self.udp_listen(kwargs)
+        if source is SOURCE_HASS:
+            self.udp_stop_listen()
+        
+        
+    def udp_listen(self, **kwargs):
+        """Turn on UDP listening."""
+        import socket
+
+        udp_port = kwargs.get(ATTR_UDP_PORT)
+        color_selection = kwargs.get(ATTR_UDP_COLOR_SELECTION, "strongest")
+        _LOGGER.debug("%s: UDP listen on %d", self.entity_id, udp_port)
+        
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._sock.bind(("0.0.0.0", udp_port))
+
+        while self._sock is not None:
+            data = self._sock.recv(1024)
+            colors = []
+            this_color = None
+            brightness = 0
+            for c in data:
+                if this_color is None:
+                    this_color = [c]
+                else:
+                    this_color.append(c)
+                if len(this_color) == 3:
+                    colors.append(this_color)
+                    this_color = None
+
+            if len(colors) == 0:
+                continue
+            if len(colors) == 1:
+                selected_color = colors[0]
+            if color_selection is "strongest":
+                maxdiff = 0
+                for c in colors:
+                    cMax = max(c)
+                    cMin = min(c)
+                    if (cMax - cMin) > maxdiff:
+                        maxdiff = cMax-cMin
+                        selected_color = c
+            elif color_selection is "brightest":
+                maxdiff = 0
+                for c in colors:
+                    cMax = max(c)
+                    if (cMax) > maxdiff:
+                        maxdiff = cMax
+                        selected_color = c
+                    
+                
+            brightness = int(max(selected_color) * 1.5)
+            args = {
+                ATTR_BRIGHTNESS: brightness,
+                ATTR_RGB_COLOR: selected_color,
+            }
+            self.async_turn_on(args)
+
+    def udp_stop_listen(self):
+        """Turn on UDP listening."""
+        if self._sock is not None:
+            self._sock.close()
+            self._sock = None
+            _LOGGER.debug("%s: UDP listen stopped", self.entity_id)
+            
 
     @property
     def supported_features(self):
