@@ -138,6 +138,7 @@ LIGHT_SELECT_SOURCE_SCHEMA = vol.Schema({
     ATTR_UDP_PORT: VALID_UDP_PORT,
     ATTR_UDP_COLOR_SELECTION: vol.In([COLOR_SELECTION_STRONGEST, COLOR_SELECTION_BRIGHTEST]),
     ATTR_UDP_MIN_CALL_TIME: VALID_UDP_MIN_CALL_TIME,
+    ATTR_TRANSITION: VALID_TRANSITION,
 })
 
 LIGHT_TOGGLE_SCHEMA = vol.Schema({
@@ -550,6 +551,7 @@ class Light(ToggleEntity):
             args = {
                 ATTR_BRIGHTNESS: brightness,
                 ATTR_RGB_COLOR: selected_color,
+                ATTR_TRANSITION: kwargs.get(ATTR_TRANSITION, 0.5)
             }
             last_call = this_call_time
             self.async_turn_on(args)
