@@ -9,6 +9,7 @@ import csv
 from datetime import timedelta
 import logging
 import os
+import time
 
 import voluptuous as vol
 
@@ -72,6 +73,7 @@ FLASH_LONG = "long"
 # UDP Listening
 ATTR_UDP_PORT = "udp_port"
 ATTR_UDP_COLOR_SELECTION = "udp_color_selection"
+ATTR_UDP_MIN_CALL_TIME = "udp_min_call_time"
 SOURCE_UDP = "udp"
 SOURCE_HASS = "hass"
 COLOR_SELECTION_STRONGEST = "strongest"
@@ -95,6 +97,7 @@ VALID_TRANSITION = vol.All(vol.Coerce(float), vol.Clamp(min=0, max=6553))
 VALID_BRIGHTNESS = vol.All(vol.Coerce(int), vol.Clamp(min=0, max=255))
 VALID_BRIGHTNESS_PCT = vol.All(vol.Coerce(float), vol.Range(min=0, max=100))
 VALID_UDP_PORT = vol.All(vol.Coerce(int), vol.Clamp(min=1, max=65535))
+VALID_UDP_MIN_CALL_TIME = vol.All(vol.Coerce(int), vol.Clamp(min=0, max=6553))
 
 LIGHT_TURN_ON_SCHEMA = vol.Schema({
     ATTR_ENTITY_ID: cv.entity_ids,
@@ -134,6 +137,7 @@ LIGHT_SELECT_SOURCE_SCHEMA = vol.Schema({
     ATTR_ENTITY_ID: cv.entity_ids,
     ATTR_UDP_PORT: VALID_UDP_PORT,
     ATTR_UDP_COLOR_SELECTION: vol.In([COLOR_SELECTION_STRONGEST, COLOR_SELECTION_BRIGHTEST]),
+    ATTR_UDP_MIN_CALL_TIME: VALID_UDP_MIN_CALL_TIME,
 })
 
 LIGHT_TOGGLE_SCHEMA = vol.Schema({
@@ -488,13 +492,23 @@ class Light(ToggleEntity):
 
         udp_port = kwargs.get(ATTR_UDP_PORT)
         color_selection = kwargs.get(ATTR_UDP_COLOR_SELECTION, "strongest")
+        min_call_time = kwargs.get(ATTR_UDP_MIN_CALL_TIME, 100)
         _LOGGER.debug("%s: UDP listen on %d", self.entity_id, udp_port)
         
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._sock.bind(("0.0.0.0", udp_port))
 
+        last_color = None
+        last_call = None
+
         while self._sock is not None:
             data = self._sock.recv(1024)
+            
+            this_call_time = self.get_time()
+            if last_call is not None:
+                if this_call_time - last_call < min_call_time:
+                    continue
+                
             colors = []
             this_color = None
             brightness = 0
@@ -528,12 +542,20 @@ class Light(ToggleEntity):
                         selected_color = c
                     
                 
+            if selected_color == last_color:
+                continue
+
+            
             brightness = int(max(selected_color) * 1.5)
             args = {
                 ATTR_BRIGHTNESS: brightness,
                 ATTR_RGB_COLOR: selected_color,
             }
+            last_call = this_call_time
             self.async_turn_on(args)
+
+    def get_time(self):
+        return int(round(time.time() * 1000))
 
     def udp_stop_listen(self):
         """Turn on UDP listening."""
