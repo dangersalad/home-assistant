@@ -479,10 +479,10 @@ class Light(ToggleEntity):
         _LOGGER.debug("%s: Setting source to %s", self.entity_id, source)
         if source is None:
             _LOGGER.error("%s: Source required", self.entity_id)
-        if source is SOURCE_UDP:
+        if source == SOURCE_UDP:
             _LOGGER.error("%s: Setting to UDP", self.entity_id)
             self.udp_listen(kwargs)
-        if source is SOURCE_HASS:
+        if source == SOURCE_HASS:
             _LOGGER.error("%s: Setting to home assistant control", self.entity_id)
             self.udp_stop_listen()
         
