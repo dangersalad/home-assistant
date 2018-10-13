@@ -27,7 +27,7 @@ from homeassistant.const import (
     SERVICE_MEDIA_SEEK, SERVICE_MEDIA_STOP, SERVICE_SHUFFLE_SET,
     SERVICE_TOGGLE, SERVICE_TURN_OFF, SERVICE_TURN_ON, SERVICE_VOLUME_DOWN,
     SERVICE_VOLUME_MUTE, SERVICE_VOLUME_SET, SERVICE_VOLUME_UP, STATE_IDLE,
-    STATE_OFF, STATE_PLAYING, STATE_UNKNOWN)
+    SERVICE_SELECT_SOURCE, STATE_OFF, STATE_PLAYING, STATE_UNKNOWN)
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.config_validation import PLATFORM_SCHEMA  # noqa
@@ -55,7 +55,6 @@ ENTITY_IMAGE_CACHE = {
 }
 
 SERVICE_PLAY_MEDIA = 'play_media'
-SERVICE_SELECT_SOURCE = 'select_source'
 SERVICE_SELECT_SOUND_MODE = 'select_sound_mode'
 SERVICE_CLEAR_PLAYLIST = 'clear_playlist'
 
