@@ -512,7 +512,7 @@ class Light(ToggleEntity):
                 
             colors = []
             this_color = None
-            brightness = 0
+            # brightness = 0
             for c in data:
                 if this_color is None:
                     this_color = [c]
@@ -547,11 +547,11 @@ class Light(ToggleEntity):
                 continue
 
             
-            brightness = int(max(selected_color) * 1.5)
+            # brightness = int(max(selected_color) * 1.5)
             args = {
-                ATTR_BRIGHTNESS: brightness,
+                # ATTR_BRIGHTNESS: brightness,
                 ATTR_RGB_COLOR: selected_color,
-                ATTR_TRANSITION: kwargs.get(ATTR_TRANSITION, 0.5)
+                ATTR_TRANSITION: kwargs.get(ATTR_TRANSITION, 0)
             }
             last_call = this_call_time
             self.async_turn_on(args)
