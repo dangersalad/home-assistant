@@ -476,11 +476,14 @@ class Light(ToggleEntity):
 
     async def async_select_source(self, **kwargs):
         source = kwargs.get(ATTR_SOURCE)
+        _LOGGER.debug("%s: Setting source", self.entity_id, source)
         if source is None:
             _LOGGER.error("%s: Source required", self.entity_id)
         if source is SOURCE_UDP:
+            _LOGGER.error("%s: Setting to UDP", self.entity_id)
             self.udp_listen(kwargs)
         if source is SOURCE_HASS:
+            _LOGGER.error("%s: Setting to home assistant control", self.entity_id)
             self.udp_stop_listen()
         
         
