@@ -72,12 +72,9 @@ FLASH_LONG = "long"
 
 # UDP Listening
 ATTR_UDP_PORT = "udp_port"
-ATTR_UDP_COLOR_SELECTION = "udp_color_selection"
 ATTR_UDP_MIN_CALL_TIME = "udp_min_call_time"
 SOURCE_UDP = "udp"
 SOURCE_HASS = "hass"
-COLOR_SELECTION_STRONGEST = "strongest"
-COLOR_SELECTION_BRIGHTEST = "brightest"
 
 # List of possible effects
 ATTR_EFFECT_LIST = "effect_list"
@@ -492,7 +489,6 @@ class Light(ToggleEntity):
         import socket
 
         udp_port = kwargs.get(ATTR_UDP_PORT)
-        color_selection = kwargs.get(ATTR_UDP_COLOR_SELECTION, "strongest")
         min_call_time = kwargs.get(ATTR_UDP_MIN_CALL_TIME, 100)
         _LOGGER.debug("%s: UDP listen on %d", self.entity_id, udp_port)
         
@@ -510,50 +506,19 @@ class Light(ToggleEntity):
                 if this_call_time - last_call < min_call_time:
                     continue
                 
-            colors = []
-            this_color = None
-            # brightness = 0
-            for c in data:
-                if this_color is None:
-                    this_color = [c]
-                else:
-                    this_color.append(c)
-                if len(this_color) == 3:
-                    colors.append(this_color)
-                    this_color = None
-
-            if len(colors) == 0:
+            if len(data) is not 3:
+                _LOGGER.debug("%s: ignoring invalid UDP data %s")
                 continue
-            if len(colors) == 1:
-                selected_color = colors[0]
-            if color_selection is "strongest":
-                maxdiff = 0
-                for c in colors:
-                    cMax = max(c)
-                    cMin = min(c)
-                    if (cMax - cMin) > maxdiff:
-                        maxdiff = cMax-cMin
-                        selected_color = c
-            elif color_selection is "brightest":
-                maxdiff = 0
-                for c in colors:
-                    cMax = max(c)
-                    if (cMax) > maxdiff:
-                        maxdiff = cMax
-                        selected_color = c
-                    
-                
-            if selected_color == last_color:
-                continue
-
             
-            # brightness = int(max(selected_color) * 1.5)
+            if data == last_color:
+                continue
+
             args = {
-                # ATTR_BRIGHTNESS: brightness,
-                ATTR_RGB_COLOR: selected_color,
+                ATTR_RGB_COLOR: data,
                 ATTR_TRANSITION: kwargs.get(ATTR_TRANSITION, 0)
             }
             last_call = this_call_time
+            last_color = data
             self.async_turn_on(args)
 
     def get_time(self):
