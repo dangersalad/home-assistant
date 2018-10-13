@@ -476,7 +476,7 @@ class Light(ToggleEntity):
 
     async def async_select_source(self, **kwargs):
         source = kwargs.get(ATTR_SOURCE)
-        _LOGGER.debug("%s: Setting source", self.entity_id, source)
+        _LOGGER.debug("%s: Setting source to %s", self.entity_id, source)
         if source is None:
             _LOGGER.error("%s: Source required", self.entity_id)
         if source is SOURCE_UDP:
