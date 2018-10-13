@@ -487,7 +487,7 @@ class Light(ToggleEntity):
             self.udp_stop_listen()
         
         
-    def udp_listen(self, **kwargs):
+    async def udp_listen(self, **kwargs):
         """Turn on UDP listening."""
         import socket
 
@@ -527,7 +527,7 @@ class Light(ToggleEntity):
     def get_time(self):
         return int(round(time.time() * 1000))
 
-    def udp_stop_listen(self):
+    async def udp_stop_listen(self):
         """Turn on UDP listening."""
         if self._sock is not None:
             self._sock.close()
